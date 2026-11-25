@@ -81,4 +81,4 @@ export interface SentHistoryEntry {
   data: ReportData;
 }
 
-export type ActiveTab = 'form' | 'templates' | 'contacts' | 'history';
+export type ActiveTab = 'form' | 'templates' | 'history';

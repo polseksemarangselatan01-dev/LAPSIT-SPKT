@@ -4,6 +4,7 @@ import { ActiveTab } from '../types/report';
 interface HeaderProps {
   activeTab: ActiveTab;
   onSelectTab: (tab: ActiveTab) => void;
+  whatsappUrl: string;
   onPrimarySendClick: () => void;
   historyCount: number;
 }
@@ -11,13 +12,13 @@ interface HeaderProps {
 const NAV_ITEMS: { id: ActiveTab; label: string }[] = [
   { id: 'form', label: 'Formulir' },
   { id: 'templates', label: 'Template' },
-  { id: 'contacts', label: 'Kontak & Grup' },
   { id: 'history', label: 'Riwayat' },
 ];
 
 export function Header({
   activeTab,
   onSelectTab,
+  whatsappUrl,
   onPrimarySendClick,
   historyCount,
 }: HeaderProps) {
@@ -28,7 +29,7 @@ export function Header({
         <button
           type="button"
           onClick={() => onSelectTab('form')}
-          className="text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 rounded"
+          className="text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 rounded cursor-pointer"
         >
           LaporWA
         </button>
@@ -50,7 +51,7 @@ export function Header({
                 key={item.id}
                 type="button"
                 onClick={() => onSelectTab(item.id)}
-                className={`relative py-2 text-sm font-medium transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 rounded ${
+                className={`relative py-2 text-sm font-medium transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 rounded cursor-pointer ${
                   isActive
                     ? 'text-slate-900'
                     : 'text-slate-600 hover:text-slate-900'
@@ -70,15 +71,17 @@ export function Header({
 
         {/* Zone 3: Single primary action */}
         <div className="shrink-0">
-          <button
-            type="button"
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={onPrimarySendClick}
-            className="inline-flex items-center gap-2 px-4 py-2 min-h-[40px] text-sm font-semibold text-white bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 rounded-lg transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-700 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 min-h-[40px] text-sm font-semibold text-white bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 rounded-lg transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-700"
           >
             <Send className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span className="hidden sm:inline">Kirim WhatsApp</span>
             <span className="sm:hidden">Kirim</span>
-          </button>
+          </a>
         </div>
       </div>
     </header>

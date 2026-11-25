@@ -1,33 +1,23 @@
-import { RefObject, useState } from 'react';
+import { useState } from 'react';
 import {
   BookmarkPlus,
-  CheckSquare,
   Clock,
   Edit3,
   Plus,
   RotateCcw,
   Save,
-  Square,
   Trash2,
-  UserPlus,
-  Users,
 } from 'lucide-react';
 import {
   ReportData,
   ReportItem,
   ReportSection,
   ReportTemplate,
-  SendMode,
-  TargetContact,
-  WhatsAppGroup,
 } from '../types/report';
 import {
   formatIndonesianDate,
-  formatPhoneReadable,
   getIndonesianDayName,
   getLocalIsoDate,
-  isValidWhatsAppPhone,
-  normalizeGroupInviteUrl,
 } from '../utils/whatsappFormatter';
 
 interface ReportFormProps {
@@ -36,21 +26,8 @@ interface ReportFormProps {
   onSelectTemplate: (templateId: string) => void;
   formData: ReportData;
   onChangeFormData: (next: ReportData) => void;
-  sendMode: SendMode;
-  onChangeSendMode: (mode: SendMode) => void;
-  targetPhone: string;
-  targetName: string;
-  onChangeTargetPhone: (phone: string, name?: string) => void;
-  contacts: TargetContact[];
-  groups: WhatsAppGroup[];
-  selectedGroupIds: string[];
-  onToggleSelectGroup: (groupId: string) => void;
-  onSelectAllGroups: (selectAll: boolean) => void;
-  onQuickSaveContact: (name: string, phone: string) => void;
-  onQuickAddGroup: (name: string, inviteUrl: string) => void;
   onSaveAsNewTemplate: (name: string, category: string) => void;
   onResetFormToTemplate: () => void;
-  phoneInputRef: RefObject<HTMLInputElement | null>;
 }
 
 export function ReportForm({
@@ -59,38 +36,13 @@ export function ReportForm({
   onSelectTemplate,
   formData,
   onChangeFormData,
-  sendMode,
-  onChangeSendMode,
-  targetPhone,
-  targetName,
-  onChangeTargetPhone,
-  contacts,
-  groups,
-  selectedGroupIds,
-  onToggleSelectGroup,
-  onSelectAllGroups,
-  onQuickSaveContact,
-  onQuickAddGroup,
   onSaveAsNewTemplate,
   onResetFormToTemplate,
-  phoneInputRef,
 }: ReportFormProps) {
   const [editStructure, setEditStructure] = useState(false);
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateCategory, setNewTemplateCategory] = useState('Operasional');
-  const [newContactName, setNewContactName] = useState('');
-  const [showQuickSaveContact, setShowQuickSaveContact] = useState(false);
-  const [showQuickAddGroup, setShowQuickAddGroup] = useState(false);
-  const [newGroupName, setNewGroupName] = useState('');
-  const [newGroupInviteUrl, setNewGroupInviteUrl] = useState('');
-
-  const phoneValid = isValidWhatsAppPhone(targetPhone);
-  const phoneAlreadySaved = contacts.some(
-    (c) =>
-      c.phone &&
-      formatPhoneReadable(c.phone) === formatPhoneReadable(targetPhone)
-  );
 
   function updateField<K extends keyof ReportData>(key: K, value: ReportData[K]) {
     onChangeFormData({ ...formData, [key]: value });
@@ -226,29 +178,9 @@ export function ReportForm({
     setShowSaveTemplateModal(false);
   }
 
-  function handleQuickContactSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newContactName.trim() || !phoneValid) return;
-    onQuickSaveContact(newContactName.trim(), targetPhone);
-    setNewContactName('');
-    setShowQuickSaveContact(false);
-  }
-
-  function handleQuickGroupSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newGroupName.trim()) return;
-    const validInvite = newGroupInviteUrl.trim()
-      ? normalizeGroupInviteUrl(newGroupInviteUrl)
-      : '';
-    onQuickAddGroup(newGroupName.trim(), validInvite);
-    setNewGroupName('');
-    setNewGroupInviteUrl('');
-    setShowQuickAddGroup(false);
-  }
-
   return (
     <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-200">
-      {/* 1. Target WhatsApp Number & Template Selector */}
+      {/* 1. Template Selector */}
       <section className="p-5 sm:p-6 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -256,7 +188,7 @@ export function ReportForm({
               Formulir Laporan WhatsApp
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
-              Pilih template, isi data laporan, lalu kirim langsung ke nomor WhatsApp tujuan.
+              Pilih template, isi data laporan, lalu kirim langsung lewat WhatsApp.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -333,291 +265,27 @@ export function ReportForm({
           </form>
         )}
 
-        {/* Template Selector + Send Mode Switch */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-          <div>
-            <label
-              htmlFor="template-select"
-              className="block text-xs font-semibold text-slate-700 mb-1.5"
-            >
-              Template Laporan
-            </label>
-            <select
-              id="template-select"
-              value={activeTemplateId}
-              onChange={(e) => onSelectTemplate(e.target.value)}
-              className="w-full px-3 py-2.5 min-h-[42px] text-sm font-medium text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
-            >
-              {templates.map((tpl) => (
-                <option key={tpl.id} value={tpl.id}>
-                  {tpl.name} ({tpl.category})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <span className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Mode Pengiriman Tujuan
-            </span>
-            <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-lg min-h-[42px]">
-              <button
-                type="button"
-                onClick={() => onChangeSendMode('phone')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
-                  sendMode === 'phone'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Nomor Tujuan
-              </button>
-              <button
-                type="button"
-                onClick={() => onChangeSendMode('groups')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
-                  sendMode === 'groups'
-                    ? 'bg-white text-emerald-800 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Multi-Grup WA ({selectedGroupIds.length})
-              </button>
-            </div>
-          </div>
+        {/* Template Selector */}
+        <div>
+          <label
+            htmlFor="template-select"
+            className="block text-xs font-semibold text-slate-700 mb-1.5"
+          >
+            Template Laporan
+          </label>
+          <select
+            id="template-select"
+            value={activeTemplateId}
+            onChange={(e) => onSelectTemplate(e.target.value)}
+            className="w-full px-3 py-2.5 min-h-[42px] text-sm font-medium text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
+          >
+            {templates.map((tpl) => (
+              <option key={tpl.id} value={tpl.id}>
+                {tpl.name} ({tpl.category})
+              </option>
+            ))}
+          </select>
         </div>
-
-        {sendMode === 'phone' ? (
-          <div className="space-y-3 pt-1">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label
-                  htmlFor="target-phone-input"
-                  className="block text-xs font-semibold text-slate-700"
-                >
-                  Nomor WhatsApp Tujuan
-                </label>
-                {targetPhone && phoneValid && (
-                  <span className="text-xs font-mono text-emerald-700 tabular-nums">
-                    {formatPhoneReadable(targetPhone)}
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  ref={phoneInputRef}
-                  id="target-phone-input"
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="Contoh: 081234567890 atau 62812..."
-                  value={targetPhone}
-                  onChange={(e) => onChangeTargetPhone(e.target.value, '')}
-                  className="flex-1 px-3 py-2.5 min-h-[42px] text-sm font-mono tabular-nums text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
-                />
-                {phoneValid && !phoneAlreadySaved && (
-                  <button
-                    type="button"
-                    onClick={() => setShowQuickSaveContact((v) => !v)}
-                    title="Simpan nomor ini ke Kontak Tujuan"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[42px] text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    <UserPlus className="w-4 h-4" aria-hidden="true" />
-                    Simpan
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {contacts.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-slate-500 mr-1">Kontak cepat:</span>
-                {contacts.map((c) => {
-                  const hasPhone = isValidWhatsAppPhone(c.phone);
-                  const isSelected =
-                    hasPhone &&
-                    formatPhoneReadable(c.phone) ===
-                      formatPhoneReadable(targetPhone);
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      disabled={!hasPhone}
-                      onClick={() => onChangeTargetPhone(c.phone, c.name)}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 ${
-                        !hasPhone
-                          ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'
-                          : isSelected
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300 cursor-pointer'
-                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
-                      }`}
-                    >
-                      {c.name}
-                      {!hasPhone && ' (Nomor belum diisi)'}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {showQuickSaveContact && (
-              <form
-                onSubmit={handleQuickContactSubmit}
-                className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-lg"
-              >
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Nama Kontak / Jabatan Penerima
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Contoh: Ka SPKT Polrestabes Semarang"
-                    value={newContactName}
-                    onChange={(e) => setNewContactName(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowQuickSaveContact(false)}
-                    className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    Simpan Kontak
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3 pt-1">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                <Users className="w-4 h-4 text-emerald-700" aria-hidden="true" />
-                <span>
-                  Pilih Grup WhatsApp Tujuan ({selectedGroupIds.length} dari{' '}
-                  {groups.length} dipilih)
-                </span>
-              </div>
-              <div className="flex items-center gap-3 text-xs">
-                <button
-                  type="button"
-                  onClick={() =>
-                    onSelectAllGroups(selectedGroupIds.length < groups.length)
-                  }
-                  className="font-medium text-slate-600 hover:text-slate-900 underline cursor-pointer"
-                >
-                  {selectedGroupIds.length < groups.length
-                    ? 'Pilih Semua'
-                    : 'Batal Pilih Semua'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowQuickAddGroup((v) => !v)}
-                  className="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-800 cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                  Tambah Grup
-                </button>
-              </div>
-            </div>
-
-            {showQuickAddGroup && (
-              <form
-                onSubmit={handleQuickGroupSubmit}
-                className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-3"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                      Nama Grup WhatsApp
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Contoh: Grup Piket Polrestabes"
-                      value={newGroupName}
-                      onChange={(e) => setNewGroupName(e.target.value)}
-                      className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                      Tautan Undangan Grup (Opsional)
-                    </label>
-                    <input
-                      type="url"
-                      placeholder="https://chat.whatsapp.com/..."
-                      value={newGroupInviteUrl}
-                      onChange={(e) => setNewGroupInviteUrl(e.target.value)}
-                      className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowQuickAddGroup(false)}
-                    className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg cursor-pointer"
-                  >
-                    Simpan Grup
-                  </button>
-                </div>
-              </form>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {groups.map((grp) => {
-                const isSelected = selectedGroupIds.includes(grp.id);
-                return (
-                  <button
-                    key={grp.id}
-                    type="button"
-                    onClick={() => onToggleSelectGroup(grp.id)}
-                    className={`p-3 rounded-lg border text-left flex items-start gap-2.5 transition-colors cursor-pointer ${
-                      isSelected
-                        ? 'bg-emerald-50/70 border-emerald-400 text-slate-900'
-                        : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
-                    }`}
-                  >
-                    {isSelected ? (
-                      <CheckSquare
-                        className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5"
-                        aria-hidden="true"
-                      />
-                    ) : (
-                      <Square
-                        className="w-4 h-4 text-slate-400 shrink-0 mt-0.5"
-                        aria-hidden="true"
-                      />
-                    )}
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold truncate">
-                        {grp.name}
-                      </div>
-                      <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                        {grp.category}
-                        {grp.inviteUrl ? ' · Tautan grup aktif' : ''}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </section>
 
       {/* 2. Kepala Surat, Kepada, Tembusan */}

@@ -1,41 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Header } from './components/Header';
 import { ReportForm } from './components/ReportForm';
 import { WhatsAppPreview } from './components/WhatsAppPreview';
 import { TemplateManager } from './components/TemplateManager';
-import { ContactManager } from './components/ContactManager';
 import { HistoryView } from './components/HistoryView';
-import {
-  createDefaultTemplates,
-  DEFAULT_CONTACTS,
-  DEFAULT_GROUPS,
-} from './data/defaultTemplates';
+import { createDefaultTemplates } from './data/defaultTemplates';
 import {
   ActiveTab,
   ReportData,
   ReportTemplate,
-  SendMode,
   SentHistoryEntry,
-  TargetContact,
-  WhatsAppGroup,
 } from './types/report';
 import {
+  buildWhatsAppUrl,
   generateReportText,
   getLocalIsoDate,
-  isValidWhatsAppPhone,
-  normalizePhoneNumber,
 } from './utils/whatsappFormatter';
 
 const STORAGE_KEYS = {
   templates: 'laporwa_templates_v1',
   activeTemplateId: 'laporwa_active_template_id_v1',
   draft: 'laporwa_draft_v1',
-  sendMode: 'laporwa_send_mode_v1',
-  targetPhone: 'laporwa_target_phone_v1',
-  targetName: 'laporwa_target_name_v1',
-  contacts: 'laporwa_contacts_v1',
-  groups: 'laporwa_groups_v1',
-  selectedGroupIds: 'laporwa_selected_group_ids_v1',
   history: 'laporwa_history_v1',
 };
 
@@ -71,35 +56,10 @@ export default function App() {
   const [customTextOverride, setCustomTextOverride] = useState<string | null>(
     null
   );
-  const [sendMode, setSendMode] = useState<SendMode>(() =>
-    readStorage<SendMode>(STORAGE_KEYS.sendMode, 'phone')
-  );
-  const [targetPhone, setTargetPhone] = useState<string>(() =>
-    readStorage<string>(STORAGE_KEYS.targetPhone, '')
-  );
-  const [targetName, setTargetName] = useState<string>(() =>
-    readStorage<string>(STORAGE_KEYS.targetName, '')
-  );
-  const [contacts, setContacts] = useState<TargetContact[]>(() =>
-    readStorage<TargetContact[]>(STORAGE_KEYS.contacts, DEFAULT_CONTACTS)
-  );
-  const [groups, setGroups] = useState<WhatsAppGroup[]>(() =>
-    readStorage<WhatsAppGroup[]>(STORAGE_KEYS.groups, DEFAULT_GROUPS)
-  );
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(() =>
-    readStorage<string[]>(
-      STORAGE_KEYS.selectedGroupIds,
-      DEFAULT_GROUPS.slice(0, 2).map((g) => g.id)
-    )
-  );
-  const [sentGroupIds, setSentGroupIds] = useState<string[]>([]);
   const [history, setHistory] = useState<SentHistoryEntry[]>(() =>
     readStorage<SentHistoryEntry[]>(STORAGE_KEYS.history, [])
   );
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-
-  const phoneInputRef = useRef<HTMLInputElement | null>(null);
-  const previewSectionRef = useRef<HTMLDivElement | null>(null);
 
   // Sync states to localStorage
   useEffect(() => {
@@ -131,53 +91,6 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEYS.sendMode, JSON.stringify(sendMode));
-    } catch {
-      // ignore
-    }
-  }, [sendMode]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        STORAGE_KEYS.targetPhone,
-        JSON.stringify(targetPhone)
-      );
-      localStorage.setItem(STORAGE_KEYS.targetName, JSON.stringify(targetName));
-    } catch {
-      // ignore
-    }
-  }, [targetPhone, targetName]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.contacts, JSON.stringify(contacts));
-    } catch {
-      // ignore
-    }
-  }, [contacts]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.groups, JSON.stringify(groups));
-    } catch {
-      // ignore
-    }
-  }, [groups]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        STORAGE_KEYS.selectedGroupIds,
-        JSON.stringify(selectedGroupIds)
-      );
-    } catch {
-      // ignore
-    }
-  }, [selectedGroupIds]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history));
     } catch {
       // ignore
@@ -192,9 +105,10 @@ export default function App() {
   }
 
   const generatedText = useMemo(() => generateReportText(formData), [formData]);
-  const selectedGroups = useMemo(
-    () => groups.filter((g) => selectedGroupIds.includes(g.id)),
-    [groups, selectedGroupIds]
+  const finalMessage = customTextOverride ?? generatedText;
+  const headerWhatsappUrl = useMemo(
+    () => buildWhatsAppUrl('', finalMessage),
+    [finalMessage]
   );
 
   function handleSelectTemplate(templateId: string) {
@@ -203,7 +117,6 @@ export default function App() {
     setActiveTemplateId(found.id);
     setFormData(structuredClone(found.data));
     setCustomTextOverride(null);
-    setSentGroupIds([]);
     setActiveTab('form');
     showToast(`Template "${found.name}" dimuat.`);
   }
@@ -214,7 +127,6 @@ export default function App() {
     if (!found) return;
     setFormData(structuredClone(found.data));
     setCustomTextOverride(null);
-    setSentGroupIds([]);
     showToast('Isi formulir dikembalikan ke standar template.');
   }
 
@@ -327,63 +239,9 @@ export default function App() {
     showToast('Template baru dibuat. Aktifkan "Edit Struktur Item" untuk menyesuaikan.');
   }
 
-  function handleQuickSaveContact(name: string, phone: string) {
-    const normalized = normalizePhoneNumber(phone);
-    const created: TargetContact = {
-      id: `cnt-${Date.now()}`,
-      name,
-      role: 'Kontak Cepat',
-      phone: normalized,
-    };
-    setContacts((prev) => [created, ...prev]);
-    setTargetName(name);
-    showToast(`Kontak "${name}" disimpan.`);
-  }
-
-  function handleQuickAddGroup(name: string, inviteUrl: string) {
-    const created: WhatsAppGroup = {
-      id: `grp-${Date.now()}`,
-      name,
-      category: 'Grup Tambahan',
-      inviteUrl,
-    };
-    setGroups((prev) => [created, ...prev]);
-    setSelectedGroupIds((prev) => [...prev, created.id]);
-    showToast(`Grup "${name}" ditambahkan & dipilih.`);
-  }
-
-  function handleToggleSelectGroup(groupId: string) {
-    setSelectedGroupIds((prev) =>
-      prev.includes(groupId)
-        ? prev.filter((id) => id !== groupId)
-        : [...prev, groupId]
-    );
-  }
-
-  function handleSelectAllGroups(selectAll: boolean) {
-    setSelectedGroupIds(selectAll ? groups.map((g) => g.id) : []);
-  }
-
-  function handleToggleGroupSent(groupId: string) {
-    setSentGroupIds((prev) =>
-      prev.includes(groupId)
-        ? prev.filter((id) => id !== groupId)
-        : [...prev, groupId]
-    );
-  }
-
-  function handleSelectContactForForm(contact: TargetContact) {
-    setSendMode('phone');
-    setTargetPhone(contact.phone);
-    setTargetName(contact.name);
-    setActiveTab('form');
-    showToast(`Nomor tujuan diatur ke ${contact.name}.`);
-  }
-
   function handleRecordAction(
     actionType: 'send' | 'copy',
-    finalMessage: string,
-    groupNames?: string[]
+    recordedMessage: string
   ) {
     const activeTpl = templates.find((t) => t.id === activeTemplateId);
     const entry: SentHistoryEntry = {
@@ -391,10 +249,9 @@ export default function App() {
       createdAt: new Date().toISOString(),
       templateId: activeTemplateId,
       templateName: activeTpl ? activeTpl.name : 'Laporan Kustom',
-      targetName: sendMode === 'groups' ? '' : targetName,
-      targetPhone: sendMode === 'groups' ? '' : normalizePhoneNumber(targetPhone),
-      groupNames: groupNames && groupNames.length > 0 ? groupNames : undefined,
-      formattedMessage: finalMessage,
+      targetName: '',
+      targetPhone: '',
+      formattedMessage: recordedMessage,
       data: structuredClone(formData),
     };
     setHistory((prev) => [entry, ...prev].slice(0, 50));
@@ -405,55 +262,12 @@ export default function App() {
     }
   }
 
-  function handleFocusTargetInput() {
-    setActiveTab('form');
-    window.setTimeout(() => {
-      if (sendMode === 'phone') {
-        phoneInputRef.current?.focus();
-        phoneInputRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }, 60);
-  }
-
-  function handleHeaderPrimarySend() {
-    if (activeTab !== 'form') {
-      setActiveTab('form');
-    }
-    if (sendMode === 'phone' && !isValidWhatsAppPhone(targetPhone)) {
-      handleFocusTargetInput();
-      showToast('Masukkan nomor WhatsApp tujuan terlebih dahulu.');
-      return;
-    }
-    if (sendMode === 'groups' && selectedGroups.length === 0) {
-      handleFocusTargetInput();
-      showToast('Pilih minimal 1 grup WhatsApp tujuan terlebih dahulu.');
-      return;
-    }
-    previewSectionRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    });
-  }
-
   function handleLoadHistoryToForm(entry: SentHistoryEntry) {
     setFormData(structuredClone(entry.data));
     if (entry.templateId && templates.some((t) => t.id === entry.templateId)) {
       setActiveTemplateId(entry.templateId);
     }
-    if (entry.groupNames && entry.groupNames.length > 0) {
-      setSendMode('groups');
-    } else if (entry.targetPhone) {
-      setSendMode('phone');
-      setTargetPhone(entry.targetPhone);
-      setTargetName(entry.targetName);
-    }
     setCustomTextOverride(null);
-    setSentGroupIds([]);
     setActiveTab('form');
     showToast('Data laporan lama dimuat ke formulir.');
   }
@@ -463,7 +277,8 @@ export default function App() {
       <Header
         activeTab={activeTab}
         onSelectTab={setActiveTab}
-        onPrimarySendClick={handleHeaderPrimarySend}
+        whatsappUrl={headerWhatsappUrl}
+        onPrimarySendClick={() => handleRecordAction('send', finalMessage)}
         historyCount={history.length}
       />
 
@@ -492,45 +307,18 @@ export default function App() {
                     setCustomTextOverride(null);
                   }
                 }}
-                sendMode={sendMode}
-                onChangeSendMode={setSendMode}
-                targetPhone={targetPhone}
-                targetName={targetName}
-                onChangeTargetPhone={(phone, name = '') => {
-                  setTargetPhone(phone);
-                  setTargetName(name);
-                }}
-                contacts={contacts}
-                groups={groups}
-                selectedGroupIds={selectedGroupIds}
-                onToggleSelectGroup={handleToggleSelectGroup}
-                onSelectAllGroups={handleSelectAllGroups}
-                onQuickSaveContact={handleQuickSaveContact}
-                onQuickAddGroup={handleQuickAddGroup}
                 onSaveAsNewTemplate={handleSaveAsNewTemplate}
                 onResetFormToTemplate={handleResetFormToTemplate}
-                phoneInputRef={phoneInputRef}
               />
             </div>
 
-            <div
-              ref={previewSectionRef}
-              className="lg:col-span-5 lg:sticky lg:top-22"
-            >
+            <div className="lg:col-span-5 lg:sticky lg:top-22">
               <WhatsAppPreview
                 senderAlias={formData.senderAlias}
-                sendMode={sendMode}
-                targetPhone={targetPhone}
-                targetName={targetName}
-                selectedGroups={selectedGroups}
-                sentGroupIds={sentGroupIds}
-                onToggleGroupSent={handleToggleGroupSent}
-                onResetGroupQueue={() => setSentGroupIds([])}
                 generatedText={generatedText}
                 customTextOverride={customTextOverride}
                 onChangeCustomText={setCustomTextOverride}
                 onRecordAction={handleRecordAction}
-                onFocusTargetInput={handleFocusTargetInput}
               />
             </div>
           </div>
@@ -545,31 +333,6 @@ export default function App() {
             onDeleteTemplate={handleDeleteTemplate}
             onResetBuiltInTemplates={handleResetBuiltInTemplates}
             onCreateBlankTemplate={handleCreateBlankTemplate}
-          />
-        )}
-
-        {activeTab === 'contacts' && (
-          <ContactManager
-            contacts={contacts}
-            groups={groups}
-            selectedGroupIds={selectedGroupIds}
-            onSaveContacts={(next) => {
-              setContacts(next);
-              showToast('Daftar kontak tujuan diperbarui.');
-            }}
-            onSaveGroups={(next) => {
-              setGroups(next);
-              setSelectedGroupIds((prev) =>
-                prev.filter((id) => next.some((g) => g.id === id))
-              );
-              showToast('Daftar grup WhatsApp diperbarui.');
-            }}
-            onToggleSelectGroup={handleToggleSelectGroup}
-            onUseSelectedGroupsInForm={() => {
-              setSendMode('groups');
-              setActiveTab('form');
-            }}
-            onSelectContactForForm={handleSelectContactForForm}
           />
         )}
 

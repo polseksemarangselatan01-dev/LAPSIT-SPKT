@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, Copy, ExternalLink, History, RotateCcw, Trash2 } from 'lucide-react';
 import { SentHistoryEntry } from '../types/report';
-import { buildWhatsAppUrl, formatPhoneReadable } from '../utils/whatsappFormatter';
+import { buildWhatsAppUrl } from '../utils/whatsappFormatter';
 
 interface HistoryViewProps {
   entries: SentHistoryEntry[];
@@ -132,16 +132,7 @@ export function HistoryView({
                       {entry.templateName}
                     </h2>
                     <div className="text-xs text-slate-500 tabular-nums mt-0.5">
-                      {formatTimestamp(entry.createdAt)} ·{' '}
-                      {entry.groupNames && entry.groupNames.length > 0
-                        ? `Multi-Grup (${entry.groupNames.length}): ${entry.groupNames.join(', ')}`
-                        : entry.targetPhone
-                        ? `Tujuan: ${
-                            entry.targetName ? `${entry.targetName} (` : ''
-                          }${formatPhoneReadable(entry.targetPhone)}${
-                            entry.targetName ? ')' : ''
-                          }`
-                        : 'Salin teks / pilih kontak di WA'}
+                      {formatTimestamp(entry.createdAt)}
                     </div>
                   </div>
 
@@ -155,10 +146,7 @@ export function HistoryView({
                       Muat ke Formulir
                     </button>
                     <a
-                      href={buildWhatsAppUrl(
-                        entry.targetPhone,
-                        entry.formattedMessage
-                      )}
+                      href={buildWhatsAppUrl('', entry.formattedMessage)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[38px] text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap shrink-0"
